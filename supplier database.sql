@@ -80,6 +80,98 @@ FROM Catalog C1
 WHERE C1.pid = P.pid);
 
 
+SELECT p.pid, p.pname, c.sid, s.sname, c.cost
+FROM CATALOG c
+JOIN PARTS p ON c.pid = p.pid
+JOIN SUPPLIERS s ON c.sid = s.sid
+WHERE c.cost = (SELECT MAX(cost) FROM CATALOG);
+
+
+SELECT s.sid, s.sname
+FROM SUPPLIERS s
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM CATALOG c
+    JOIN PARTS p ON c.pid = p.pid
+    WHERE c.sid = s.sid AND p.color = 'Red'
+);
+
+
+SELECT s.sid, s.sname,
+       IFNULL(SUM(c.cost), 0) AS total_value
+FROM SUPPLIERS s
+LEFT JOIN CATALOG c ON s.sid = c.sid
+GROUP BY s.sid, s.sname;
+
+
+SELECT s.sid, s.sname
+FROM SUPPLIERS s
+JOIN CATALOG c ON s.sid = c.sid
+WHERE c.cost < 20
+GROUP BY s.sid, s.sname
+HAVING COUNT(*) >= 2;
+
+SELECT c.sid, s.sname, c.pid, p.pname, c.cost
+FROM CATALOG c
+JOIN SUPPLIERS s ON s.sid = c.sid
+JOIN PARTS p ON p.pid = c.pid
+WHERE c.cost = (
+    SELECT MIN(c2.cost)
+    FROM CATALOG c2
+    WHERE c2.pid = c.pid
+);
+
+
+
+CREATE VIEW SupplierPartCount AS
+SELECT s.sid, s.sname,
+       COUNT(c.pid) AS num_parts
+FROM SUPPLIERS s
+LEFT JOIN CATALOG c ON s.sid = c.sid
+GROUP BY s.sid, s.sname;
+ select * from SupplierPartCount;
+
+CREATE VIEW MostExpensiveSupplier AS
+SELECT c.sid, s.sname, c.pid, p.pname, c.cost
+FROM CATALOG c
+JOIN SUPPLIERS s ON c.sid = s.sid
+JOIN PARTS p ON c.pid = p.pid
+WHERE c.cost = (
+    SELECT MAX(c2.cost)
+    FROM CATALOG c2
+    WHERE c2.pid = c.pid
+);
+ select * from MostExpensiveSupplier;
+
+
+DELIMITER $$
+CREATE TRIGGER cost_check
+BEFORE INSERT ON CATALOG
+FOR EACH ROW
+BEGIN
+    IF NEW.cost < 1 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Cost cannot be below 1';
+    END IF;
+END$$
+DELIMITER ;
+
+
+DELIMITER $$
+CREATE TRIGGER default_cost
+BEFORE INSERT ON CATALOG
+FOR EACH ROW
+BEGIN
+    IF NEW.cost IS NULL THEN
+        SET NEW.cost = 50;
+    END IF;
+END$$
+DELIMITER ;
+
+
+
+
+
 select * from SUPPLIERS;
 select * from PARTS;
 select * from CATALOG;
